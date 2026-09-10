@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>حاسبة الأوفر تايم</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Tahoma, 'Segoe UI', sans-serif;
+    background: #0F1115;
+    color: #E8E6E1;
+  }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 24px 18px 60px; }
+  h1 { color: #F2C078; font-size: 22px; margin: 0 0 4px; }
+  .sub { color: #8A8D93; font-size: 13px; margin: 0 0 24px; }
+  .card {
+    background: #181B21;
+    border: 1px solid #252932;
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 20px;
+  }
+  .row { display: flex; gap: 12px; }
+  .field { flex: 1; margin-bottom: 12px; }
+  label { display: block; font-size: 12px; color: #8A8D93; margin-bottom: 6px; }
+  input, select {
+    width: 100%;
+    background: #0F1115;
+    border: 1px solid #2A2E37;
+    border-radius: 12px;
+    padding: 10px 12px;
+    color: #E8E6E1;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  input:focus, select:focus { outline: none; border-color: #F2C078; }
+  .stat-row { display: flex; justify-content: space-between; font-size: 14px; padding: 6px 0; }
+  .stat-row .label { color: #8A8D93; }
+  .rate-normal { color: #8FBF9F; }
+  .rate-holiday { color: #E89B9B; }
+  .divider { border-top: 1px solid #252932; margin: 8px 0; }
+  .type-btns { display: flex; gap: 8px; margin-bottom: 14px; }
+  .type-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 12px;
+    border: 1px solid #2A2E37;
+    background: #0F1115;
+    color: #8A8D93;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .type-btn.active { background: #F2C078; color: #0F1115; border-color: #F2C078; }
+  .add-btn, .auth-btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 12px;
+    background: #F2C078;
+    color: #0F1115;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+  }
+  .add-btn:disabled, .auth-btn:disabled { opacity: 0.5; cursor: default; }
+  .link-btn {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    background: none;
+    color: #8A8D93;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: underline;
+    margin-top: 8px;
+  }
+  .month-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .month-bar label { margin: 0; white-space: nowrap; }
+  .month-bar select { flex: 1; }
+  .entry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #0F1115;
+    border: 1px solid #232730;
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+  .entry .date { font-size: 14px; }
+  .entry .meta { font-size: 12px; color: #8A8D93; }
+  .entry .right { display: flex; align-items: center; gap: 10px; }
+  .entry .pay { color: #8FBF9F; font-weight: 700; font-size: 14px; }
+  .del { background: none; border: none; color: #8A8D93; font-size: 16px; cursor: pointer; }
+  .del:hover { color: #E89B9B; }
+  .totals {
+    background: linear-gradient(135deg, #1F2430, #181B21);
+    border: 1px solid #2A2E37;
+  }
+  .totals .stat-row .val { font-weight: 700; }
+  .totals .final { color: #F2C078; font-size: 22px; }
+  .empty { color: #8A8D93; font-size: 13px; text-align: center; padding: 8px 0; }
+  .status { color: #8A8D93; font-size: 12px; text-align: center; margin-top: 10px; min-height: 16px; }
+  .error-msg { color: #E89B9B; font-size: 13px; text-align: center; margin-top: 10px; min-height: 16px; }
+  .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .signout-btn { background: none; border: 1px solid #2A2E37; color: #8A8D93; border-radius: 10px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+  #app { display: none; }
+  #loadingScreen { text-align: center; padding: 60px 0; color: #8A8D93; }
+
+  .auth-page { display: none; min-height: 80vh; flex-direction: column; justify-content: center; }
+  .auth-head { text-align: center; margin-bottom: 28px; }
+  .auth-head .badge {
+    display: inline-block;
+    background: #1F2430;
+    color: #F2C078;
+    font-size: 12px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    margin-bottom: 14px;
+    border: 1px solid #2A2E37;
+  }
+  .auth-head h1 { font-size: 24px; margin-bottom: 6px; }
+  .auth-head p { color: #8A8D93; font-size: 13px; margin: 0; }
+  .auth-card { background: #181B21; border: 1px solid #252932; border-radius: 18px; padding: 24px 20px; }
+  .auth-field { margin-bottom: 16px; }
+  .auth-field label { font-size: 13px; margin-bottom: 7px; }
+  .auth-field input { padding: 12px 14px; font-size: 15px; }
+  .auth-submit {
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 12px;
+    background: #F2C078;
+    color: #0F1115;
+    font-weight: 700;
+    font-size: 15px;
+    cursor: pointer;
+    margin-top: 6px;
+  }
+  .auth-submit:disabled { opacity: 0.5; cursor: default; }
+  .auth-switch {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 13px;
+    color: #8A8D93;
+  }
+  .auth-switch button {
+    background: none;
+    border: none;
+    color: #F2C078;
+    font-size: 13px;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+  }
+  .auth-error { color: #E89B9B; font-size: 13px; text-align: center; margin-top: 14px; min-height: 16px; }
+  .auth-success { color: #8FBF9F; font-size: 13px; text-align: center; margin-top: 14px; min-height: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="loadingScreen">جاري التحميل...</div>
+
+  <!-- شاشة تسجيل الدخول -->
+  <div id="loginPage" class="auth-page">
+    <div class="auth-head">
+      <span class="badge">حاسبة الأوفر تايم</span>
+      <h1>تسجيل الدخول</h1>
+      <p>أدخل بياناتك للوصول لحسابك</p>
+    </div>
+    <div class="auth-card">
+      <div class="auth-field">
+        <label>البريد الإلكتروني</label>
+        <input type="email" id="loginEmail" placeholder="example@email.com">
+      </div>
+      <div class="auth-field">
+        <label>كلمة المرور</label>
+        <input type="password" id="loginPassword" placeholder="أدخل كلمة المرور">
+      </div>
+      <button class="auth-submit" id="loginBtn" onclick="handleLogin()">تسجيل دخول</button>
+      <div class="auth-error" id="loginError"></div>
+    </div>
+    <div class="auth-switch">
+      ما عندك حساب؟ <button onclick="showPage('signup')">أنشئ حساب جديد</button>
+    </div>
+  </div>
+
+  <!-- شاشة إنشاء حساب -->
+  <div id="signupPage" class="auth-page">
+    <div class="auth-head">
+      <span class="badge">حاسبة الأوفر تايم</span>
+      <h1>حساب جديد</h1>
+      <p>عبّي بياناتك لإنشاء حسابك الخاص</p>
+    </div>
+    <div class="auth-card">
+      <div class="auth-field">
+        <label>البريد الإلكتروني</label>
+        <input type="email" id="signupEmail" placeholder="example@email.com">
+      </div>
+      <div class="auth-field">
+        <label>كلمة المرور</label>
+        <input type="password" id="signupPassword" placeholder="6 أحرف على الأقل">
+      </div>
+      <div class="auth-field">
+        <label>تأكيد كلمة المرور</label>
+        <input type="password" id="signupPasswordConfirm" placeholder="أعد كتابة كلمة المرور">
+      </div>
+      <button class="auth-submit" id="signupBtn" onclick="handleSignup()">إنشاء الحساب</button>
+      <div class="auth-error" id="signupError"></div>
+      <div class="auth-success" id="signupSuccess"></div>
+    </div>
+    <div class="auth-switch">
+      عندك حساب أصلاً؟ <button onclick="showPage('login')">سجّل دخول</button>
+    </div>
+  </div>
+
+  <div id="app">
+    <div class="topbar">
+      <div>
+        <h1>حاسبة الأوفر تايم</h1>
+        <p class="sub" id="userEmail"></p>
+      </div>
+      <button class="signout-btn" onclick="handleSignout()">تسجيل خروج</button>
+    </div>
+
+    <div class="month-bar">
+      <label>الشهر</label>
+      <select id="monthFilter"></select>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="field">
+          <label>الراتب الشهري (د.أ)</label>
+          <input type="number" id="salary" value="300">
+        </div>
+        <div class="field">
+          <label>ساعات الدوام اليومية</label>
+          <input type="number" id="dailyHours" value="7">
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="stat-row"><span class="label">سعر الساعة العادية</span><span id="hourlyRate">-</span></div>
+      <div class="stat-row"><span class="label">أوفر تايم عادي (125%)</span><span class="rate-normal" id="rateNormal">-</span></div>
+      <div class="stat-row"><span class="label">أوفر تايم بيوم العطلة (150%)</span><span class="rate-holiday" id="rateHoliday">-</span></div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="field">
+          <label>التاريخ</label>
+          <input type="date" id="date">
+        </div>
+        <div class="field">
+          <label>عدد الساعات</label>
+          <input type="number" step="0.5" id="hours" placeholder="مثال: 2.5">
+        </div>
+      </div>
+      <div class="type-btns">
+        <button class="type-btn active" id="btnNormal" onclick="setType('normal')">يوم عادي</button>
+        <button class="type-btn" id="btnHoliday" onclick="setType('holiday')">يوم عطلة</button>
+      </div>
+      <button class="add-btn" id="addBtn" onclick="addEntry()">إضافة</button>
+    </div>
+
+    <div class="card" id="listCard" style="display:none;">
+      <div id="entriesList"></div>
+    </div>
+
+    <div class="card totals">
+      <div class="stat-row"><span class="label">مجموع الساعات</span><span class="val" id="totalHours">0 ساعة</span></div>
+      <div class="stat-row"><span class="label">المجموع الكلي</span><span class="final" id="totalPay">0.00 د.أ</span></div>
+    </div>
+
+    <div class="status" id="status"></div>
+  </div>
+</div>
+
+<script>
+// ====== إعدادات Supabase ======
+const SUPABASE_URL = 'https://pbrejoxeispmgpdiygpf.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_Amj6-_-g6Ge_5V2bu_QsvA_ylPWUm3d';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let entries = [];
+let settings = { salary: 300, daily_hours: 7 };
+let currentType = 'normal';
+let selectedMonth = 'all';
+let currentUser = null;
+
+const monthNames = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+
+function monthKeyFromDate(dateStr) {
+  if (!dateStr) return 'بدون-تاريخ';
+  return dateStr.slice(0, 7);
+}
+function monthLabel(key) {
+  if (key === 'بدون-تاريخ') return 'بدون تاريخ';
+  const [y, m] = key.split('-');
+  const idx = parseInt(m, 10) - 1;
+  return (monthNames[idx] || m) + ' ' + y;
+}
+function currentMonthKey() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+// ====== المصادقة ======
+function showPage(name) {
+  document.getElementById('loginPage').style.display = name === 'login' ? 'flex' : 'none';
+  document.getElementById('signupPage').style.display = name === 'signup' ? 'flex' : 'none';
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('signupError').textContent = '';
+  document.getElementById('signupSuccess').textContent = '';
+}
+
+async function handleSignup() {
+  const email = document.getElementById('signupEmail').value.trim();
+  const password = document.getElementById('signupPassword').value;
+  const confirm = document.getElementById('signupPasswordConfirm').value;
+  const errEl = document.getElementById('signupError');
+  const okEl = document.getElementById('signupSuccess');
+  errEl.textContent = '';
+  okEl.textContent = '';
+
+  if (!email || password.length < 6) {
+    errEl.textContent = 'الرجاء إدخال بريد صحيح وكلمة مرور 6 أحرف على الأقل';
+    return;
+  }
+  if (password !== confirm) {
+    errEl.textContent = 'كلمتا المرور غير متطابقتين';
+    return;
+  }
+  const btn = document.getElementById('signupBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.auth.signUp({ email, password });
+  btn.disabled = false;
+  if (error) {
+    errEl.textContent = 'خطأ: ' + error.message;
+    return;
+  }
+  if (data.session) {
+    onLoggedIn(data.session.user);
+  } else {
+    okEl.textContent = 'تم إنشاء الحساب! تحقق من بريدك لتأكيد الحساب ثم سجّل دخول.';
+  }
+}
+async function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = '';
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  btn.disabled = false;
+  if (error) {
+    errEl.textContent = 'خطأ: ' + error.message;
+    return;
+  }
+  onLoggedIn(data.user);
+}
+async function handleSignout() {
+  await sb.auth.signOut();
+  currentUser = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPassword').value = '';
+  showPage('login');
+}
+
+async function onLoggedIn(user) {
+  currentUser = user;
+  document.getElementById('loginPage').style.display = 'none';
+  document.getElementById('signupPage').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('userEmail').textContent = user.email;
+  await loadData();
+}
+
+// ====== البيانات ======
+async function loadData() {
+  const status = document.getElementById('status');
+  status.textContent = 'جاري التحميل...';
+
+  const { data: settingsRow } = await sb.from('settings').select('*').eq('user_id', currentUser.id).maybeSingle();
+  if (settingsRow) {
+    settings = settingsRow;
+  } else {
+    await sb.from('settings').insert({ user_id: currentUser.id, salary: 300, daily_hours: 7 });
+    settings = { salary: 300, daily_hours: 7 };
+  }
+  document.getElementById('salary').value = settings.salary;
+  document.getElementById('dailyHours').value = settings.daily_hours;
+
+  const { data: entriesRows, error } = await sb.from('entries').select('*').eq('user_id', currentUser.id).order('entry_date', { ascending: false });
+  entries = entriesRows || [];
+
+  selectedMonth = entries.length ? currentMonthKey() : 'all';
+  status.textContent = '';
+  render();
+}
+
+async function saveSettings() {
+  settings.salary = Number(document.getElementById('salary').value) || 0;
+  settings.daily_hours = Number(document.getElementById('dailyHours').value) || 1;
+  const status = document.getElementById('status');
+  const { error } = await sb.from('settings').upsert({ user_id: currentUser.id, salary: settings.salary, daily_hours: settings.daily_hours });
+  status.textContent = error ? 'تعذّر حفظ الإعدادات' : '';
+}
+
+function hourlyRate() {
+  const salary = Number(document.getElementById('salary').value) || 0;
+  const dailyHours = Number(document.getElementById('dailyHours').value) || 1;
+  return salary / 30 / dailyHours;
+}
+function rateFor(type) {
+  return type === 'holiday' ? hourlyRate() * 1.5 : hourlyRate() * 1.25;
+}
+function setType(t) {
+  currentType = t;
+  document.getElementById('btnNormal').classList.toggle('active', t === 'normal');
+  document.getElementById('btnHoliday').classList.toggle('active', t === 'holiday');
+}
+
+async function addEntry() {
+  const dateVal = document.getElementById('date').value || null;
+  const hoursVal = Number(document.getElementById('hours').value);
+  if (!hoursVal || hoursVal <= 0) return;
+  const btn = document.getElementById('addBtn');
+  btn.disabled = true;
+  const pay = hoursVal * rateFor(currentType);
+  const mKey = monthKeyFromDate(dateVal);
+  const newRow = {
+    user_id: currentUser.id,
+    entry_date: dateVal,
+    hours: hoursVal,
+    type: currentType,
+    pay: pay,
+    month: mKey
+  };
+  const { data, error } = await sb.from('entries').insert(newRow).select().single();
+  btn.disabled = false;
+  if (error) {
+    document.getElementById('status').textContent = 'تعذّر حفظ السجل';
+    return;
+  }
+  entries.push(data);
+  document.getElementById('hours').value = '';
+  selectedMonth = mKey;
+  render();
+}
+async function removeEntry(id) {
+  await sb.from('entries').delete().eq('id', id);
+  entries = entries.filter(e => e.id !== id);
+  render();
+}
+
+function populateMonthFilter() {
+  const sel = document.getElementById('monthFilter');
+  const keys = Array.from(new Set(entries.map(e => e.month)));
+  keys.sort().reverse();
+  const cur = currentMonthKey();
+  if (!keys.includes(cur)) keys.unshift(cur);
+
+  sel.innerHTML = '';
+  const allOpt = document.createElement('option');
+  allOpt.value = 'all';
+  allOpt.textContent = 'كل الشهور';
+  sel.appendChild(allOpt);
+  keys.forEach(k => {
+    const opt = document.createElement('option');
+    opt.value = k;
+    opt.textContent = monthLabel(k);
+    sel.appendChild(opt);
+  });
+  sel.value = selectedMonth;
+}
+
+function render() {
+  document.getElementById('hourlyRate').textContent = hourlyRate().toFixed(3) + ' د.أ';
+  document.getElementById('rateNormal').textContent = rateFor('normal').toFixed(3) + ' د.أ/ساعة';
+  document.getElementById('rateHoliday').textContent = rateFor('holiday').toFixed(3) + ' د.أ/ساعة';
+
+  populateMonthFilter();
+
+  const visibleEntries = selectedMonth === 'all'
+    ? entries
+    : entries.filter(e => e.month === selectedMonth);
+  const sorted = [...visibleEntries].sort((a, b) => (a.entry_date < b.entry_date ? 1 : -1));
+
+  const listCard = document.getElementById('listCard');
+  const list = document.getElementById('entriesList');
+  list.innerHTML = '';
+  if (sorted.length === 0) {
+    listCard.style.display = 'none';
+  } else {
+    listCard.style.display = 'block';
+    sorted.forEach(e => {
+      const div = document.createElement('div');
+      div.className = 'entry';
+      div.innerHTML = `
+        <div>
+          <div class="date">${e.entry_date || 'بدون تاريخ'}</div>
+          <div class="meta">${e.hours} ساعة · ${e.type === 'holiday' ? 'عطلة' : 'عادي'}</div>
+        </div>
+        <div class="right">
+          <span class="pay">${Number(e.pay).toFixed(2)} د.أ</span>
+          <button class="del" onclick="removeEntry(${e.id})">✕</button>
+        </div>`;
+      list.appendChild(div);
+    });
+  }
+
+  const totalHours = visibleEntries.reduce((s, e) => s + Number(e.hours), 0);
+  const totalPay = visibleEntries.reduce((s, e) => s + Number(e.pay), 0);
+  document.getElementById('totalHours').textContent = totalHours + ' ساعة';
+  document.getElementById('totalPay').textContent = totalPay.toFixed(2) + ' د.أ';
+}
+
+document.getElementById('salary').addEventListener('input', () => { saveSettings(); render(); });
+document.getElementById('dailyHours').addEventListener('input', () => { saveSettings(); render(); });
+document.getElementById('monthFilter').addEventListener('change', (ev) => {
+  selectedMonth = ev.target.value;
+  render();
+});
+
+// ====== بدء التشغيل ======
+async function init() {
+  const { data: { session } } = await sb.auth.getSession();
+  document.getElementById('loadingScreen').style.display = 'none';
+  if (session) {
+    onLoggedIn(session.user);
+  } else {
+    showPage('login');
+  }
+}
+init();
+</script>
+</body>
+</html>
